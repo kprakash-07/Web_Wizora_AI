@@ -72,9 +72,19 @@ export default function Chat() {
         })
       });
 
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      const contentType = response.headers.get("content-type");
+      if (!response.ok) {
+        const errorText = contentType?.includes("application/json") 
+          ? (await response.json()).error 
+          : await response.text();
+        throw new Error(errorText || `Server error: ${response.status}`);
+      }
 
+      if (!contentType?.includes("application/json")) {
+        throw new Error("Server returned non-JSON response. Check Vercel logs.");
+      }
+
+      const data = await response.json();
       setMessages(prev => [...prev, { role: "assistant", content: data.content, timestamp: new Date() }]);
     } catch (error: any) {
       console.error("Chat Error:", error);
