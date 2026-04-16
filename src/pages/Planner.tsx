@@ -87,7 +87,10 @@ export default function Planner() {
   const [editingTask, setEditingTask] = useState<StudyTask | null>(null);
   const [timerTick, setTimerTick] = useState(0);
 
-  const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" }), []);
+  const ai = useMemo(() => {
+    const key = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
+    return new GoogleGenAI({ apiKey: key });
+  }, []);
 
   useEffect(() => {
     let interval: any;
