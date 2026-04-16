@@ -77,7 +77,8 @@ export default function Chat() {
 
       setMessages(prev => [...prev, { role: "assistant", content: data.content, timestamp: new Date() }]);
     } catch (error: any) {
-      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error. Please try again.", timestamp: new Date() }]);
+      console.error("Chat Error:", error);
+      setMessages(prev => [...prev, { role: "assistant", content: `Error: ${error.message || "Something went wrong"}. Please check your API keys and Vercel logs.`, timestamp: new Date() }]);
     } finally {
       setLoading(false);
     }
