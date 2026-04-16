@@ -31,30 +31,30 @@ const NoteCard = ({ note, isActive, onClick, onDelete }: any) => (
     layout
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
-    whileHover={{ scale: 1.02 }}
+    whileHover={{ translateY: -2 }}
     onClick={onClick}
-    className={`p-4 rounded-[16px] cursor-pointer transition-all duration-200 border group relative ${
+    className={`p-3 rounded-[12px] cursor-pointer transition-all duration-200 border group relative mb-[10px] ${
       isActive 
-        ? "bg-white dark:bg-[#1E293B] shadow-soft gradient-border" 
-        : "bg-transparent border-transparent hover:bg-white/50 dark:hover:bg-white/5"
+        ? "bg-[#EEF2FF] border-[#6366F1] dark:bg-[#1E293B] dark:border-primary shadow-soft" 
+        : "bg-white border-[#E2E8F0] hover:shadow-[0_6px_14px_rgba(0,0,0,0.06)] dark:bg-transparent dark:border-transparent dark:hover:bg-white/5"
     }`}
   >
-    <div className="flex justify-between items-start mb-2">
-      <h3 className={`font-bold text-base truncate pr-6 ${isActive ? "text-primary" : "text-slate-900 dark:text-slate-100"}`}>
+    <div className="flex justify-between items-start mb-1">
+      <h3 className={`font-bold text-sm truncate pr-6 ${isActive ? "text-[#6366F1] dark:text-primary" : "text-[#0F172A] dark:text-slate-100"}`}>
         {note.title || "Untitled Note"}
       </h3>
       <button 
         onClick={(e) => { e.stopPropagation(); onDelete(note.id); }}
-        className="p-1.5 rounded-lg text-slate-400 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+        className="p-1 rounded-lg text-slate-400 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
       >
-        <Trash2 className="h-4 w-4" />
+        <Trash2 className="h-3.5 w-3.5" />
       </button>
     </div>
-    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-3">
+    <p className="text-[11px] text-[#64748B] dark:text-slate-400 line-clamp-2 leading-relaxed mb-2">
       {note.summary || note.content || "No content yet..."}
     </p>
-    <div className="flex items-center gap-2 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
-      <Clock className="h-3 w-3" />
+    <div className="flex items-center gap-1.5 text-[9px] font-medium text-slate-400 uppercase tracking-wider">
+      <Clock className="h-2.5 w-2.5" />
       {new Date(note.createdAt).toLocaleDateString()}
     </div>
   </motion.div>
@@ -68,16 +68,16 @@ const NotesList = ({ notes, selectedNoteId, onSelect, onCreate, onDelete, loadin
   );
 
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col h-full gap-4 bg-white dark:bg-transparent border-r border-[#E2E8F0] dark:border-transparent pr-4">
       <div className="flex items-center justify-between px-1">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">My Notes</h1>
+        <h1 className="text-xl font-bold text-[#0F172A] dark:text-white">My Notes</h1>
         <Button 
           onClick={onCreate}
           disabled={loading}
-          className="h-10 w-10 rounded-xl gradient-primary text-white shadow-lg hover:brightness-110 transition-all"
+          className="h-9 w-9 rounded-[12px] bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] text-white shadow-lg hover:scale-[1.05] transition-all border-none"
           size="icon"
         >
-          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
         </Button>
       </div>
 
@@ -87,12 +87,12 @@ const NotesList = ({ notes, selectedNoteId, onSelect, onCreate, onDelete, loadin
           placeholder="Search notes..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 h-11 rounded-xl bg-white dark:bg-[#1E293B] border-slate-200 dark:border-slate-800 focus:ring-primary/20"
+          className="pl-10 h-10 rounded-[12px] bg-[#F1F5F9] dark:bg-[#1E293B] border-none focus-visible:ring-2 focus-visible:ring-[#6366F1] dark:focus-visible:ring-primary"
         />
       </div>
 
       <ScrollArea className="flex-1 -mx-1 px-1 chat-scrollbar">
-        <div className="space-y-3 pb-4">
+        <div className="pb-4">
           {filteredNotes.map((note: any) => (
             <NoteCard 
               key={note.id}
@@ -104,8 +104,8 @@ const NotesList = ({ notes, selectedNoteId, onSelect, onCreate, onDelete, loadin
           ))}
           {filteredNotes.length === 0 && (
             <div className="text-center py-12 px-4">
-              <div className="h-16 w-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400">
-                <FileText className="h-8 w-8" />
+              <div className="h-14 w-14 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400">
+                <FileText className="h-7 w-7" />
               </div>
               <p className="text-sm font-medium text-slate-500">No notes found</p>
             </div>
@@ -134,25 +134,25 @@ const NoteEditor = ({
       exit={{ opacity: 0, x: -20 }}
       className="h-full flex flex-col"
     >
-      <Card className="flex-1 flex flex-col overflow-hidden border-none shadow-soft bg-white dark:bg-[#1E1E1E] rounded-[20px]">
+      <Card className="flex-1 flex flex-col overflow-hidden border-dashed border-[#CBD5F5] dark:border-none shadow-soft bg-white dark:bg-[#1E1E1E] rounded-[16px]">
         <CardHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1">
               <input 
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="text-3xl font-bold bg-transparent border-none p-0 h-auto focus:outline-none w-full text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-700"
+                className="text-2xl font-bold bg-transparent border-none p-0 h-auto focus:outline-none w-full text-[#0F172A] dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-700"
                 placeholder="Note Title"
               />
-              <div className="flex items-center gap-2 mt-2 text-slate-400 font-medium text-sm">
-                <Calendar className="h-4 w-4" />
+              <div className="flex items-center gap-2 mt-2 text-slate-400 font-medium text-xs">
+                <Calendar className="h-3.5 w-3.5" />
                 {new Date(note?.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Button 
                 variant="ghost" 
-                className="rounded-xl h-10 px-4 font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="rounded-xl h-9 px-4 font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 onClick={onSave}
                 disabled={loading}
               >
@@ -160,7 +160,7 @@ const NoteEditor = ({
                 Save
               </Button>
               <Button 
-                className="rounded-xl h-10 px-5 font-bold gradient-primary text-white shadow-lg shadow-primary/20 hover:brightness-110 transition-all"
+                className="rounded-xl h-9 px-5 font-bold bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] text-white shadow-lg hover:scale-[1.05] transition-all border-none"
                 onClick={onSummarize}
                 disabled={loading || !editContent.trim()}
               >
@@ -173,13 +173,13 @@ const NoteEditor = ({
 
         <Tabs defaultValue="edit" className="flex-1 flex flex-col">
           <div className="px-6 border-b border-slate-100 dark:border-slate-800">
-            <TabsList className="bg-transparent h-14 gap-6">
+            <TabsList className="bg-transparent h-12 gap-6">
               {["edit", "summary", "points", "flashcards"].map((tab) => (
                 (tab === "edit" || note?.summary) && (
                   <TabsTrigger 
                     key={tab}
                     value={tab} 
-                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 text-sm font-bold uppercase tracking-wider text-slate-400 data-[state=active]:text-primary transition-all"
+                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#6366F1] dark:data-[state=active]:border-primary rounded-none h-full px-0 text-xs font-bold uppercase tracking-wider text-slate-400 data-[state=active]:text-[#6366F1] dark:data-[state=active]:text-primary transition-all"
                   >
                     {tab === "edit" ? "Editor" : tab === "points" ? "Key Points" : tab}
                   </TabsTrigger>
@@ -194,13 +194,13 @@ const NoteEditor = ({
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 placeholder="Start writing your study notes..."
-                className="w-full h-full min-h-[400px] bg-transparent border-none p-0 focus:outline-none resize-none text-lg leading-relaxed font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-700"
+                className="w-full h-full min-h-[400px] bg-transparent border-none p-0 focus:outline-none resize-none text-base leading-relaxed font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-700"
               />
             </TabsContent>
 
             <TabsContent value="summary" className="mt-0 focus-visible:ring-0">
-              <div className="bg-slate-50 dark:bg-slate-900/50 border-l-4 border-primary p-6 rounded-xl">
-                <p className="text-lg leading-relaxed font-medium text-slate-700 dark:text-slate-300 italic">
+              <div className="bg-[#EEF2FF] dark:bg-slate-900/50 border-l-4 border-[#6366F1] dark:border-primary p-6 rounded-xl">
+                <p className="text-base leading-relaxed font-medium text-slate-700 dark:text-slate-300 italic">
                   "{note?.summary}"
                 </p>
               </div>
@@ -216,10 +216,10 @@ const NoteEditor = ({
                     key={i} 
                     className="flex gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800"
                   >
-                    <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                      <Lightbulb className="h-5 w-5" />
+                    <div className="h-7 w-7 rounded-lg bg-[#EEF2FF] dark:bg-primary/10 text-[#6366F1] dark:text-primary flex items-center justify-center shrink-0">
+                      <Lightbulb className="h-4 w-4" />
                     </div>
-                    <p className="text-base font-semibold text-slate-700 dark:text-slate-300 self-center">{point}</p>
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 self-center">{point}</p>
                   </motion.div>
                 ))}
               </div>
@@ -228,15 +228,15 @@ const NoteEditor = ({
             <TabsContent value="flashcards" className="mt-0 focus-visible:ring-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {note?.flashcards?.map((card: any, i: number) => (
-                  <div key={i} className="group h-48 perspective-1000">
+                  <div key={i} className="group h-44 perspective-1000">
                     <div className="relative h-full w-full transition-all duration-500 transform-style-3d group-hover:rotate-y-180">
                       <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl backface-hidden shadow-sm">
-                        <Badge className="mb-3 bg-primary/10 text-primary border-none text-[10px] font-bold uppercase tracking-wider">Question</Badge>
-                        <p className="text-base font-bold text-slate-900 dark:text-white leading-tight">{card.q}</p>
+                        <Badge className="mb-2 bg-[#EEF2FF] dark:bg-primary/10 text-[#6366F1] dark:text-primary border-none text-[9px] font-bold uppercase tracking-wider">Question</Badge>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{card.q}</p>
                       </div>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-primary text-white rounded-2xl backface-hidden rotate-y-180 shadow-lg shadow-primary/20">
-                        <Badge variant="outline" className="mb-3 border-white/30 text-white text-[10px] font-bold uppercase tracking-wider">Answer</Badge>
-                        <p className="text-base font-semibold leading-relaxed">{card.a}</p>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[#6366F1] dark:bg-primary text-white rounded-2xl backface-hidden rotate-y-180 shadow-lg shadow-[#6366F1]/20 dark:shadow-primary/20">
+                        <Badge variant="outline" className="mb-2 border-white/30 text-white text-[9px] font-bold uppercase tracking-wider">Answer</Badge>
+                        <p className="text-sm font-semibold leading-relaxed">{card.a}</p>
                       </div>
                     </div>
                   </div>
@@ -369,7 +369,7 @@ export default function Notes() {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] p-4 md:p-6">
+    <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] p-4 md:p-6 bg-[#F8FAFC] dark:bg-transparent rounded-3xl">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
         {/* Sidebar */}
         <div className="lg:col-span-4 xl:col-span-3 h-full overflow-hidden">
@@ -392,18 +392,18 @@ export default function Notes() {
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
-                className="h-full flex flex-col items-center justify-center text-center bg-white/30 dark:bg-slate-900/30 rounded-[20px] border border-dashed border-slate-200 dark:border-slate-800 p-12"
+                className="h-full flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900/30 rounded-[16px] border border-dashed border-[#CBD5F5] dark:border-slate-800 p-12"
               >
-                <div className="h-24 w-24 bg-primary/5 rounded-[2rem] flex items-center justify-center text-primary mb-6">
-                  <PenLine className="h-12 w-12" />
+                <div className="h-20 w-20 bg-[#EEF2FF] dark:bg-primary/10 rounded-[2rem] flex items-center justify-center text-[#6366F1] dark:text-primary mb-6">
+                  <PenLine className="h-10 w-10" />
                 </div>
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Select a note</h2>
-                <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-8">
+                <h2 className="text-2xl font-bold text-[#0F172A] dark:text-white mb-2">Select a note</h2>
+                <p className="text-[#64748B] dark:text-slate-400 max-w-sm mx-auto mb-8">
                   Choose a note from the sidebar or create a new one to start your AI study session.
                 </p>
                 <Button 
                   onClick={handleCreateNewNote}
-                  className="h-14 px-8 rounded-2xl font-bold text-lg gradient-primary text-white shadow-xl shadow-primary/20 hover:scale-105 transition-all"
+                  className="h-12 px-8 rounded-[12px] font-bold text-base bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] text-white shadow-xl hover:scale-[1.05] transition-all border-none"
                 >
                   <Plus className="h-5 w-5 mr-2" />
                   New Note

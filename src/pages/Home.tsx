@@ -14,7 +14,7 @@ export default function Home() {
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">Wizora AI</span>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-secondary">Wizora AI</span>
           </div>
           <div className="flex items-center gap-6">
             <Link to="/login" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
@@ -148,9 +148,9 @@ export default function Home() {
       </section>
 
       <footer className="py-20 border-t border-border text-center">
-        <div className="flex items-center justify-center gap-2 font-black text-foreground mb-4 text-xl tracking-tighter">
+        <div className="flex items-center justify-center gap-2 font-black mb-4 text-xl tracking-tighter">
           <GraduationCap className="h-7 w-7 text-primary" />
-          <span>Wizora AI</span>
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-secondary">Wizora AI</span>
         </div>
         <p className="text-muted-foreground font-medium">© 2026 Wizora AI. Engineering the future of education.</p>
       </footer>

@@ -54,6 +54,41 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "topic", "score"]
+    },
+    "StudyPlan": {
+      "title": "StudyPlan",
+      "description": "AI generated study plan",
+      "type": "object",
+      "properties": {
+        "dailyPlan": { "type": "array" },
+        "weeklyRoadmap": { "type": "array" },
+        "aiSuggestions": { "type": "array" },
+        "examDate": { "type": "string" },
+        "subjects": { "type": "array" },
+        "hoursPerDay": { "type": "string" },
+        "updatedAt": { "type": "object" }
+      }
+    },
+    "StudyTask": {
+      "title": "StudyTask",
+      "description": "Specific task from study plan",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "time": { "type": "string" },
+        "task": { "type": "string" },
+        "subject": { "type": "string" },
+        "topic": { "type": "string" },
+        "priority": { "type": "string" },
+        "duration": { "type": "number" },
+        "plannedTime": { "type": "number", "description": "Planned study time in minutes" },
+        "actualTime": { "type": "number", "description": "Actual study time spent in minutes" },
+        "status": { "type": "string" },
+        "date": { "type": "string" },
+        "assignedDay": { "type": "string", "description": "Day of the week or specific date" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["userId", "task", "status", "date"]
     }
   },
   "firestore": {
@@ -72,6 +107,14 @@
     "/quizzes/{quizId}": {
       "schema": "Quiz",
       "description": "Quiz performance results"
+    },
+    "/study_plans/{userId}": {
+      "schema": "StudyPlan",
+      "description": "User's AI study plan"
+    },
+    "/study_tasks/{taskId}": {
+      "schema": "StudyTask",
+      "description": "Individual tasks from the study plan"
     }
   }
 }

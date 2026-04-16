@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
@@ -24,20 +25,13 @@ import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { sendEmailVerification } from "firebase/auth";
 
-const mockPerformanceData = [
-  { day: "Mon", score: 65 },
-  { day: "Tue", score: 78 },
-  { day: "Wed", score: 72 },
-  { day: "Thu", score: 85 },
-  { day: "Fri", score: 92 },
-  { day: "Sat", score: 88 },
-  { day: "Sun", score: 95 },
-];
-
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [userData, setUserData] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [studySessions, setStudySessions] = useState<any[]>([]);
+  const [quizResults, setQuizResults] = useState<any[]>([]);
   const [newTask, setNewTask] = useState("");
   const [loading, setLoading] = useState(true);
   const [resending, setResending] = useState(false);
@@ -52,18 +46,50 @@ export default function Dashboard() {
     });
 
     // Listen to tasks
-    const q = query(collection(db, "tasks"), where("userId", "==", user.uid));
-    const unsubTasks = onSnapshot(q, (snapshot) => {
+    const qTasks = query(collection(db, "tasks"), where("userId", "==", user.uid));
+    const unsubTasks = onSnapshot(qTasks, (snapshot) => {
       const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTasks(tasksList);
+    });
+
+    // Listen to study sessions
+    const qSessions = query(collection(db, "study_sessions"), where("userId", "==", user.uid));
+    const unsubSessions = onSnapshot(qSessions, (snapshot) => {
+      const sessions = snapshot.docs.map(doc => doc.data());
+      setStudySessions(sessions);
+    });
+
+    // Listen to quiz results
+    const qQuizzes = query(
+      collection(db, "quizzes"), 
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(10)
+    );
+    const unsubQuizzes = onSnapshot(qQuizzes, (snapshot) => {
+      const results = snapshot.docs.map(doc => doc.data());
+      setQuizResults(results);
       setLoading(false);
     });
 
     return () => {
       unsubUser();
       unsubTasks();
+      unsubSessions();
+      unsubQuizzes();
     };
   }, [user]);
+
+  const totalStudyHours = studySessions.reduce((acc, session) => acc + (session.duration || 0), 0);
+  
+  const averageQuizScore = quizResults.length > 0 
+    ? Math.round((quizResults.reduce((acc, q) => acc + (q.score / q.total), 0) / quizResults.length) * 100)
+    : 0;
+
+  const chartData = quizResults.slice().reverse().map(q => ({
+    day: new Date(q.createdAt).toLocaleDateString(undefined, { weekday: 'short' }),
+    score: Math.round((q.score / q.total) * 100)
+  }));
 
   const handleResendVerification = async () => {
     if (!user) return;
@@ -160,8 +186,8 @@ export default function Dashboard() {
         {[
           { label: "Study Progress", value: `${Math.round(progress)}%`, icon: TrendingUp, color: "text-blue-500", bg: "bg-blue-500/10", gradient: "from-blue-500/20 to-transparent" },
           { label: "Tasks Completed", value: `${completedTasks}/${tasks.length}`, icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10", gradient: "from-emerald-500/20 to-transparent" },
-          { label: "Study Hours", value: "4.5h", icon: Clock, color: "text-indigo-500", bg: "bg-indigo-500/10", gradient: "from-indigo-500/20 to-transparent" },
-          { label: "Quiz Avg", value: "88%", icon: BrainCircuit, color: "text-purple-500", bg: "bg-purple-500/10", gradient: "from-purple-500/20 to-transparent" },
+          { label: "Study Hours", value: `${totalStudyHours}h`, icon: Clock, color: "text-indigo-500", bg: "bg-indigo-500/10", gradient: "from-indigo-500/20 to-transparent" },
+          { label: "Quiz Avg", value: `${averageQuizScore}%`, icon: BrainCircuit, color: "text-purple-500", bg: "bg-purple-500/10", gradient: "from-purple-500/20 to-transparent" },
         ].map((stat, i) => (
           <Card key={i} className="border-none shadow-lg bg-card/50 backdrop-blur-sm card-hover overflow-hidden relative group">
             <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
@@ -293,7 +319,11 @@ export default function Dashboard() {
                 <p className="text-sm font-black uppercase tracking-widest mb-2 opacity-80">Recommended for you</p>
                 <p className="text-lg font-medium leading-relaxed">"You've been doing great in Physics! Try a quick quiz on Thermodynamics to solidify your knowledge."</p>
               </div>
-              <Button variant="secondary" className="w-full h-14 rounded-2xl font-black text-lg bg-white text-indigo-600 hover:bg-white/90 shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]">
+              <Button 
+                variant="secondary" 
+                className="w-full h-14 rounded-2xl font-black text-lg bg-white text-indigo-600 hover:bg-white/90 shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => navigate("/quiz")}
+              >
                 Start Quiz
               </Button>
             </CardContent>
@@ -307,7 +337,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="h-[200px] p-0 pr-4">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={mockPerformanceData}>
+                <LineChart data={chartData.length > 0 ? chartData : [{ day: 'None', score: 0 }]}>
                   <Tooltip 
                     contentStyle={{ backgroundColor: "var(--card)", borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }}
                     itemStyle={{ color: "var(--primary)" }}

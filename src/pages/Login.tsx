@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
+import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendEmailVerification, signOut } from "firebase/auth";
 import { auth, googleProvider, db } from "../lib/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
-import { GraduationCap, Chrome, Mail, Lock, ArrowRight, User, CheckCircle2 } from "lucide-react";
+import { GraduationCap, Chrome, Mail, Lock, ArrowRight, User, CheckCircle2, AlertTriangle, Send, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Login() {
@@ -16,8 +16,10 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showResend, setShowResend] = useState(false);
   const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -25,45 +27,56 @@ export default function Login() {
     setLoading(true);
     setError("");
     setSuccess("");
+    setShowResend(false);
     try {
-      let userCredential;
       if (isLogin) {
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
-        
-        // Optional: Check if email is verified on login
-        // if (!userCredential.user.emailVerified) {
-        //   setError("Please verify your email before logging in.");
-        //   return;
-        // }
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Force reload to get latest verification status
+        await user.reload();
+
+        if (!user.emailVerified) {
+          setError("Please verify your email before logging in.");
+          setShowResend(true);
+          await signOut(auth); // Sign out immediately as requested
+          return;
+        }
         
         navigate("/dashboard");
       } else {
-        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
         
-        // Send verification email
-        await sendEmailVerification(userCredential.user);
+        // Send verification email immediately
+        await sendEmailVerification(user);
         
         // Update profile
-        await updateProfile(userCredential.user, {
+        await updateProfile(user, {
           displayName: username
         });
+
         // Create user doc
-        await setDoc(doc(db, "users", userCredential.user.uid), {
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
           displayName: username || "Student",
-          photoURL: userCredential.user.photoURL || "",
+          photoURL: user.photoURL || "",
           streak: 0,
           lastActive: new Date().toISOString(),
           goals: []
         });
 
-        setSuccess("Account created! Please check your email for a verification link.");
-        // We don't navigate immediately so they can see the message
+        setSuccess("Verification email sent. Please check your inbox.");
+        
+        // Sign out immediately after signup to prevent access
+        await signOut(auth);
+
+        // Switch to login after a delay
         setTimeout(() => {
           setIsLogin(true);
           setSuccess("");
-        }, 5000);
+        }, 6000);
       }
     } catch (err: any) {
       setError(err.message);
@@ -72,17 +85,44 @@ export default function Login() {
     }
   };
 
+  const handleResendAfterLoginFail = async () => {
+    setResending(true);
+    setError("");
+    try {
+      // To resend, we must sign in again briefly
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await sendEmailVerification(userCredential.user);
+      setSuccess("Verification email resent! Please check your inbox.");
+      await signOut(auth);
+      setShowResend(false);
+    } catch (err: any) {
+      setError("Failed to resend: " + err.message);
+    } finally {
+      setResending(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setLoading(true);
+    setError("");
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const userDoc = await getDoc(doc(db, "users", result.user.uid));
+      const user = result.user;
+
+      // Google users are usually verified, but we check anyway
+      if (!user.emailVerified) {
+        setError("Your Google account email is not verified. Please verify it in your Google settings.");
+        await signOut(auth);
+        return;
+      }
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
       if (!userDoc.exists()) {
-        await setDoc(doc(db, "users", result.user.uid), {
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
-          photoURL: result.user.photoURL,
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
           streak: 0,
           lastActive: new Date().toISOString(),
           goals: []
@@ -114,7 +154,7 @@ export default function Login() {
             <div className="h-16 w-16 bg-primary rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-primary/40 mb-4 group-hover:scale-110 transition-transform">
               <GraduationCap className="h-10 w-10" />
             </div>
-            <h1 className="text-3xl font-black tracking-tighter text-foreground">Wizora AI</h1>
+            <h1 className="text-3xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-secondary">Wizora AI</h1>
             <p className="text-muted-foreground font-medium">Your personal AI study companion</p>
           </Link>
         </div>
@@ -176,13 +216,28 @@ export default function Login() {
                 </div>
               </div>
               {error && (
-                <motion.p 
+                <motion.div 
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="text-sm text-destructive font-bold bg-destructive/10 p-4 rounded-2xl border border-destructive/20"
+                  className="text-sm text-destructive font-bold bg-destructive/10 p-4 rounded-2xl border border-destructive/20 space-y-3"
                 >
-                  {error}
-                </motion.p>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <p>{error}</p>
+                  </div>
+                  {showResend && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleResendAfterLoginFail}
+                      disabled={resending}
+                      className="w-full rounded-xl border-destructive/30 text-destructive hover:bg-destructive hover:text-white transition-all font-bold gap-2"
+                    >
+                      {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                      Resend Verification Email
+                    </Button>
+                  )}
+                </motion.div>
               )}
               {success && (
                 <motion.div 

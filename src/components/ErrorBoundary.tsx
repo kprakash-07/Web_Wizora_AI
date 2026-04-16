@@ -1,7 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { AlertCircle, RefreshCcw } from "lucide-react";
 import { Button } from "./ui/button";
-import { AlertTriangle } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -26,35 +25,44 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
+  private handleReset = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.reload();
+  };
+
   public render() {
     if (this.state.hasError) {
       let errorMessage = "An unexpected error occurred.";
       try {
-        const parsed = JSON.parse(this.state.error?.message || "{}");
-        if (parsed.error) {
-          errorMessage = `Firestore Error: ${parsed.error} during ${parsed.operationType} on ${parsed.path}`;
+        const parsedError = JSON.parse(this.state.error?.message || "");
+        if (parsedError.error && parsedError.error.includes("Missing or insufficient permissions")) {
+          errorMessage = "You don't have permission to perform this action. Please check your account settings or contact support.";
         }
       } catch (e) {
-        errorMessage = this.state.error?.message || errorMessage;
+        // Not a JSON error
+        if (this.state.error?.message.includes("Missing or insufficient permissions")) {
+            errorMessage = "You don't have permission to perform this action.";
+        }
       }
 
       return (
-        <div className="flex items-center justify-center min-h-screen p-4 bg-background">
-          <Card className="max-w-md w-full">
-            <CardHeader className="flex flex-row items-center gap-2">
-              <AlertTriangle className="text-destructive" />
-              <CardTitle>Something went wrong</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground">{errorMessage}</p>
-              <Button 
-                onClick={() => window.location.reload()}
-                className="w-full"
-              >
-                Reload Application
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="min-h-[400px] flex flex-col items-center justify-center p-8 text-center space-y-6 bg-destructive/5 rounded-[2rem] border-2 border-dashed border-destructive/20">
+          <div className="h-20 w-20 bg-destructive/10 rounded-full flex items-center justify-center text-destructive">
+            <AlertCircle className="h-10 w-10" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-destructive">Something went wrong</h2>
+            <p className="text-muted-foreground font-medium max-w-md mx-auto">
+              {errorMessage}
+            </p>
+          </div>
+          <Button 
+            onClick={this.handleReset}
+            className="rounded-xl font-black gap-2"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            Try Again
+          </Button>
         </div>
       );
     }

@@ -42,5 +42,15 @@ service cloud.firestore {
       allow create: if isNewDocOwner();
       allow update, delete: if isDocOwner();
     }
+
+    match /study_plans/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /study_tasks/{taskId} {
+      allow read: if isDocOwner();
+      allow create: if isNewDocOwner();
+      allow update, delete: if isDocOwner();
+    }
   }
 }

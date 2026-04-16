@@ -30,12 +30,31 @@ const navItems = [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, reloadUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  // Enforce email verification
+  React.useEffect(() => {
+    const checkVerification = async () => {
+      if (user) {
+        await user.reload();
+        if (!user.emailVerified) {
+          await auth.signOut();
+          navigate("/login");
+        }
+      }
+    };
+    
+    checkVerification();
+    
+    // Optional: check periodically or on window focus
+    window.addEventListener('focus', checkVerification);
+    return () => window.removeEventListener('focus', checkVerification);
+  }, [user, navigate]);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -51,10 +70,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background transition-colors duration-300">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 border-b bg-card/80 backdrop-blur-md z-50 flex items-center justify-between px-4">
-        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-primary">
-          <GraduationCap className="h-8 w-8" />
-          <span className="text-xl tracking-tight">Wizora AI</span>
-        </Link>
+          <Link to="/dashboard" className="flex items-center gap-2 font-bold">
+            <GraduationCap className="h-8 w-8 text-primary" />
+            <span className="text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-secondary font-black">Wizora AI</span>
+          </Link>
         <Button
           variant="ghost"
           size="icon"
@@ -71,11 +90,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="hidden lg:flex relative flex-col border-r bg-card transition-all duration-300 ease-in-out z-40"
       >
         <div className="flex h-20 items-center justify-between px-6">
-          <Link to="/dashboard" className="flex items-center gap-3 font-black text-primary group">
+          <Link to="/dashboard" className="flex items-center gap-3 font-black group">
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
               <GraduationCap className="h-7 w-7" />
             </div>
-            {isSidebarOpen && <span className="text-2xl tracking-tighter">Wizora AI</span>}
+            {isSidebarOpen && <span className="text-2xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-secondary">Wizora AI</span>}
           </Link>
           <Button
             variant="ghost"
@@ -147,9 +166,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               className="lg:hidden fixed top-0 left-0 bottom-0 w-[80%] max-w-sm bg-card z-[70] flex flex-col shadow-2xl"
             >
               <div className="flex h-20 items-center justify-between px-6 border-b">
-                <div className="flex items-center gap-3 font-black text-primary">
-                  <GraduationCap className="h-8 w-8" />
-                  <span className="text-2xl tracking-tighter">Wizora AI</span>
+                <div className="flex items-center gap-3 font-black">
+                  <GraduationCap className="h-8 w-8 text-primary" />
+                  <span className="text-2xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-secondary">Wizora AI</span>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
                   <X className="h-6 w-6" />
