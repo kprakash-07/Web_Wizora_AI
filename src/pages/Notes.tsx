@@ -20,9 +20,11 @@ import {
   Save,
   PenLine,
   Search,
-  Clock
+  Clock,
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { GoogleGenAI, Type } from "@google/genai";
 
 // --- Sub-components ---
 
@@ -260,6 +262,8 @@ export default function Notes() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
 
+  const ai = React.useMemo(() => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" }), []);
+
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
   useEffect(() => {
@@ -332,28 +336,55 @@ export default function Notes() {
     }
     setLoading(true);
     try {
+      // First save current content
       await updateDoc(doc(db, "notes", selectedNoteId), {
         title: editTitle,
         content: editContent,
       });
 
-      const response = await fetch("/api/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: editContent })
+      const prompt = `Summarize the following study notes and extract key points and flashcards. Note content: ${editContent}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              summary: { type: Type.STRING },
+              keyPoints: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              flashcards: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    q: { type: Type.STRING },
+                    a: { type: Type.STRING }
+                  },
+                  required: ["q", "a"]
+                }
+              }
+            },
+            required: ["summary", "keyPoints", "flashcards"]
+          }
+        }
       });
       
-      if (!response.ok) throw new Error("AI Service Error");
-      const aiData = await response.json();
+      const aiData = JSON.parse(response.text || "{}");
       
       await updateDoc(doc(db, "notes", selectedNoteId), {
         summary: aiData.summary,
         keyPoints: aiData.keyPoints,
         flashcards: aiData.flashcards,
+        updatedAt: new Date().toISOString()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Summarization failed:", error);
-      alert("AI Summarization failed. The text might be too short or there was a server error.");
+      alert(`AI Summarization failed: ${error.message || "An unexpected error occurred."}`);
     } finally {
       setLoading(false);
     }

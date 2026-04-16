@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
+import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   role: "user" | "assistant";
@@ -43,6 +44,8 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const ai = React.useMemo(() => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" }), []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -60,24 +63,39 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map(m => ({
-            role: m.role,
-            content: isAdvanced ? `${m.content} (Provide a detailed, advanced explanation with technical terms)` : `${m.content} (Explain this simply as if to a high school student)`
-          })),
-          model: isAdvanced ? "mixtral-8x7b-32768" : "llama-3.3-70b-versatile"
-        })
+      const history = messages.map(m => ({
+        role: m.role,
+        content: m.role === "assistant" ? m.content : (isAdvanced ? `${m.content} (Provide a detailed, advanced explanation with technical terms)` : `${m.content} (Explain this simply as if to a high school student)`)
+      }));
+
+      const modelName = isAdvanced ? "gemini-3.1-pro-preview" : "gemini-3-flash-preview";
+      const systemInstruction = "You are Wizora AI, an expert study tutor. Provide helpful, accurate, and encouraging educational support. Use Markdown for formatting.";
+
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: [...history, { role: "user", content: input }].map(m => ({
+          role: m.role === "assistant" ? "model" as const : "user" as const,
+          parts: [{ text: m.content }]
+        })),
+        config: {
+          systemInstruction,
+          temperature: 0.7,
+        }
       });
 
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-
-      setMessages(prev => [...prev, { role: "assistant", content: data.content, timestamp: new Date() }]);
+      const assistantMessage: Message = { 
+        role: "assistant", 
+        content: response.text || "I'm sorry, I couldn't generate a response.", 
+        timestamp: new Date() 
+      };
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (error: any) {
-      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error. Please try again.", timestamp: new Date() }]);
+      console.error("Chat Error:", error);
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: `Sorry, I encountered an error: ${error.message || "Please check your connection and try again."}`, 
+        timestamp: new Date() 
+      }]);
     } finally {
       setLoading(false);
     }

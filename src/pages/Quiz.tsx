@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { GoogleGenAI, Type } from "@google/genai";
 
 export default function Quiz() {
   const { user } = useAuth();
@@ -31,22 +32,49 @@ export default function Quiz() {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
+  const ai = React.useMemo(() => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" }), []);
+
   const generateQuiz = async () => {
     if (!topic.trim()) return;
     setLoading(true);
     try {
-      const response = await fetch("/api/quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic })
+      const prompt = `Generate 5 multiple choice questions about the topic: "${topic}". Return only a JSON object with questions array.`;
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              questions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    q: { type: Type.STRING },
+                    options: { 
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING }
+                    },
+                    correct: { type: Type.NUMBER, description: "Index of the correct option (0-indexed)" }
+                  },
+                  required: ["q", "options", "correct"]
+                }
+              }
+            },
+            required: ["questions"]
+          }
+        }
       });
-      const data = await response.json();
+      const data = JSON.parse(response.text || "{}");
       setQuestions(data.questions);
       setCurrentIdx(0);
       setScore(0);
       setShowResult(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Quiz generation failed:", error);
+      alert(`AI Quiz generation failed: ${error.message || "An unexpected error occurred."}`);
     } finally {
       setLoading(false);
     }
