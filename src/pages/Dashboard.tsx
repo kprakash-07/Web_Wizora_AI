@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, orderBy, limit } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, orderBy, limit, increment } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
@@ -43,6 +43,10 @@ export default function Dashboard() {
     // Listen to user data
     const unsubUser = onSnapshot(doc(db, "users", user.uid), (doc) => {
       setUserData(doc.data());
+      setLoading(false);
+    }, (err) => {
+      console.error("User snapshot error:", err);
+      setLoading(false);
     });
 
     // Listen to tasks
@@ -50,6 +54,8 @@ export default function Dashboard() {
     const unsubTasks = onSnapshot(qTasks, (snapshot) => {
       const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTasks(tasksList);
+    }, (err) => {
+      console.error("Tasks snapshot error:", err);
     });
 
     // Listen to study sessions
@@ -57,6 +63,8 @@ export default function Dashboard() {
     const unsubSessions = onSnapshot(qSessions, (snapshot) => {
       const sessions = snapshot.docs.map(doc => doc.data());
       setStudySessions(sessions);
+    }, (err) => {
+      console.error("Sessions snapshot error:", err);
     });
 
     // Listen to quiz results
@@ -70,6 +78,9 @@ export default function Dashboard() {
       const results = snapshot.docs.map(doc => doc.data());
       setQuizResults(results);
       setLoading(false);
+    }, (err) => {
+      console.error("Quizzes snapshot error:", err);
+      setLoading(false);
     });
 
     return () => {
@@ -80,16 +91,32 @@ export default function Dashboard() {
     };
   }, [user]);
 
-  const totalStudyHours = studySessions.reduce((acc, session) => acc + (session.duration || 0), 0);
+  const totalStudyMins = (studySessions.reduce((acc, session) => acc + (Number(session.duration) || 0), 0)) + (Number(userData?.totalStudyTime || 0));
+  const totalStudyHours = Math.floor(totalStudyMins / 60);
+  const remainingMins = totalStudyMins % 60;
+  const studyTimeDisplay = totalStudyHours > 0 ? `${totalStudyHours}h ${remainingMins}m` : `${remainingMins}m`;
   
   const averageQuizScore = quizResults.length > 0 
-    ? Math.round((quizResults.reduce((acc, q) => acc + (q.score / q.total), 0) / quizResults.length) * 100)
+    ? Math.round((quizResults.reduce((acc, q) => acc + ((Number(q.score) || 0) / (Number(q.total) || 1)), 0) / quizResults.length) * 100)
     : 0;
 
-  const chartData = quizResults.slice().reverse().map(q => ({
-    day: new Date(q.createdAt).toLocaleDateString(undefined, { weekday: 'short' }),
-    score: Math.round((q.score / q.total) * 100)
-  }));
+  const chartData = quizResults.slice().reverse().map(q => {
+    let date;
+    if (q.createdAt?.toDate) {
+      date = q.createdAt.toDate();
+    } else if (q.createdAt) {
+      date = new Date(q.createdAt);
+    } else {
+      date = new Date();
+    }
+
+    return {
+      day: date instanceof Date && !isNaN(date.getTime()) 
+        ? date.toLocaleDateString(undefined, { weekday: 'short' }) 
+        : '?',
+      score: Math.round(((Number(q.score) || 0) / (Number(q.total) || 1)) * 100)
+    };
+  });
 
   const handleResendVerification = async () => {
     if (!user) return;
@@ -116,8 +143,29 @@ export default function Dashboard() {
     setNewTask("");
   };
 
-  const toggleTask = async (taskId: string, completed: boolean) => {
-    await updateDoc(doc(db, "tasks", taskId), { completed: !completed });
+  const toggleTask = async (task: any) => {
+    const newStatus = !task.completed;
+    await updateDoc(doc(db, "tasks", task.id), { completed: newStatus });
+
+    if (newStatus && user) {
+      // Calculate time to add to stats
+      let timeInMins = 0;
+      if (task.time) {
+        const value = parseInt(task.time);
+        if (task.time.endsWith('h')) {
+          timeInMins = value * 60;
+        } else {
+          timeInMins = value;
+        }
+      }
+
+      const userRef = doc(db, "users", user.uid);
+      updateDoc(userRef, {
+        totalStudyTime: increment(timeInMins),
+        xp: increment(20),
+        totalTasksCompleted: increment(1)
+      }).catch(err => console.error("Error updating user stats:", err));
+    }
   };
 
   const deleteTask = async (taskId: string) => {
@@ -126,6 +174,15 @@ export default function Dashboard() {
 
   const completedTasks = tasks.filter(t => t.completed).length;
   const progress = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="h-12 w-12 text-primary animate-spin" />
+        <p className="text-muted-foreground font-bold animate-pulse">Loading your dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -186,7 +243,7 @@ export default function Dashboard() {
         {[
           { label: "Study Progress", value: `${Math.round(progress)}%`, icon: TrendingUp, color: "text-blue-500", bg: "bg-blue-500/10", gradient: "from-blue-500/20 to-transparent" },
           { label: "Tasks Completed", value: `${completedTasks}/${tasks.length}`, icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10", gradient: "from-emerald-500/20 to-transparent" },
-          { label: "Study Hours", value: `${totalStudyHours}h`, icon: Clock, color: "text-indigo-500", bg: "bg-indigo-500/10", gradient: "from-indigo-500/20 to-transparent" },
+          { label: "Study Time", value: studyTimeDisplay, icon: Clock, color: "text-indigo-500", bg: "bg-indigo-500/10", gradient: "from-indigo-500/20 to-transparent" },
           { label: "Quiz Avg", value: `${averageQuizScore}%`, icon: BrainCircuit, color: "text-purple-500", bg: "bg-purple-500/10", gradient: "from-purple-500/20 to-transparent" },
         ].map((stat, i) => (
           <Card key={i} className="border-none shadow-lg bg-card/50 backdrop-blur-sm card-hover overflow-hidden relative group">
@@ -275,16 +332,21 @@ export default function Dashboard() {
                     >
                       <div className="flex items-center gap-4">
                         <button 
-                          onClick={() => toggleTask(task.id, task.completed)}
+                          onClick={() => toggleTask(task)}
                           className={`h-7 w-7 rounded-xl border-2 flex items-center justify-center transition-all ${
                             task.completed ? "bg-primary border-primary text-white scale-110" : "border-muted-foreground/30 hover:border-primary"
                           }`}
                         >
                           {task.completed && <CheckCircle2 className="h-5 w-5" />}
                         </button>
-                        <span className={`text-lg font-bold transition-all ${task.completed ? "line-through text-muted-foreground/50" : "text-foreground"}`}>
-                          {task.title}
-                        </span>
+                        <div className="flex flex-col">
+                          {task.subject && (
+                            <span className="text-[10px] font-black uppercase tracking-widest text-primary/60 mb-0.5">{task.subject}</span>
+                          )}
+                          <span className={`text-lg font-bold transition-all ${task.completed ? "line-through text-muted-foreground/50" : "text-foreground"}`}>
+                            {task.title}
+                          </span>
+                        </div>
                       </div>
                       <Button 
                         variant="ghost" 

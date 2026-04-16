@@ -1,4 +1,5 @@
 import express from "express";
+import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
@@ -7,6 +8,8 @@ import multer from "multer";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,19 +17,12 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
+  const PORT = 3000;
+
   app.use(express.json());
 
-  // Health check
-  app.get("/api/health", (req, res) => {
-    res.json({ 
-      status: "ok", 
-      message: "Wizora API is running",
-      env: {
-        hasGroq: !!process.env.GROQ_API_KEY,
-        nodeEnv: process.env.NODE_ENV,
-        isVercel: !!process.env.VERCEL
-      }
-    });
+  const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY,
   });
 
   const upload = multer({ storage: multer.memoryStorage() });
@@ -37,7 +33,7 @@ async function startServer() {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
       }
-      const pdf = require("pdf-parse");
+
       const data = await pdf(req.file.buffer);
       res.json({ text: data.text });
     } catch (error: any) {
@@ -51,10 +47,9 @@ async function startServer() {
       const { messages, model = "llama-3.3-70b-versatile" } = req.body;
       
       if (!process.env.GROQ_API_KEY) {
-        return res.status(500).json({ error: "GROQ_API_KEY is not configured in Vercel environment variables" });
+        return res.status(500).json({ error: "GROQ_API_KEY is not configured" });
       }
 
-      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
       const completion = await groq.chat.completions.create({
         messages,
         model,
@@ -72,11 +67,11 @@ async function startServer() {
   app.post("/api/summarize", async (req, res) => {
     try {
       const { text } = req.body;
+      
       if (!process.env.GROQ_API_KEY) {
         return res.status(500).json({ error: "GROQ_API_KEY is not configured" });
       }
 
-      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
       const completion = await groq.chat.completions.create({
         messages: [
           {
@@ -102,11 +97,11 @@ async function startServer() {
   app.post("/api/quiz", async (req, res) => {
     try {
       const { topic } = req.body;
+      
       if (!process.env.GROQ_API_KEY) {
         return res.status(500).json({ error: "GROQ_API_KEY is not configured" });
       }
 
-      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
       const completion = await groq.chat.completions.create({
         messages: [
           {
@@ -132,11 +127,11 @@ async function startServer() {
   app.post("/api/planner", async (req, res) => {
     try {
       const { examDate, subjects, hoursPerDay } = req.body;
+      
       if (!process.env.GROQ_API_KEY) {
         return res.status(500).json({ error: "GROQ_API_KEY is not configured" });
       }
 
-      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
       const completion = await groq.chat.completions.create({
         messages: [
           {
@@ -159,21 +154,14 @@ async function startServer() {
     }
   });
 
-  // Only load Vite in development and NOT on Vercel
-  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-    try {
-      const { createServer: createViteServer } = await import("vite");
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      });
-      app.use(vite.middlewares);
-    } catch (e) {
-      console.error("Vite failed to load:", e);
-    }
-  } 
-  // Local production serving (not on Vercel)
-  else if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
@@ -181,25 +169,9 @@ async function startServer() {
     });
   }
 
-  return app;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 }
 
-let cachedApp: any = null;
-
-export default async (req: any, res: any) => {
-  try {
-    if (!cachedApp) {
-      cachedApp = await startServer();
-    }
-    return cachedApp(req, res);
-  } catch (error: any) {
-    console.error("Serverless Function Crash:", error);
-    if (!res.headersSent) {
-      res.status(500).json({ 
-        error: "Serverless Function Crash", 
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
-    }
-  }
-};
+startServer();
